@@ -259,7 +259,7 @@
     "@types/chai-xml": "^0.3.2",
     "@types/debug": "4.1.7",
     "@types/dirty-chai": "2.0.2",
-    "@types/express": "4.17.15",
+    "@types/express": "4.17.21",
     "@types/fs-extra": "9.0.13",
     "@types/glob": "8.1.0",
     "@types/has-ansi": "5.0.0",
