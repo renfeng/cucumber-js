@@ -1,10 +1,14 @@
-import { Envelope } from '@cucumber/messages'
+import { Envelope, TestCaseFinished, TestStepResult } from '@cucumber/messages'
 import { ArrayValues, Promisable } from 'type-fest'
 import { IRunEnvironment } from '../api'
 import { ILogger } from '../logger'
 import { IFilterablePickle } from '../filter'
 import { IResolvedPaths } from '../paths'
-import { coordinatorTransformKeys, coordinatorVoidKeys } from './events'
+import {
+  coordinatorPredicateKeys,
+  coordinatorTransformKeys,
+  coordinatorVoidKeys,
+} from './events'
 
 export type Operation = 'loadSources' | 'loadSupport' | 'runCucumber'
 
@@ -14,25 +18,42 @@ export type CoordinatorPluginVoidEventKey = ArrayValues<
 export type CoordinatorPluginTransformEventKey = ArrayValues<
   typeof coordinatorTransformKeys
 >
+export type CoordinatorPluginPredicateEventKey = ArrayValues<
+  typeof coordinatorPredicateKeys
+>
 export type CoordinatorPluginEventKey =
   | CoordinatorPluginVoidEventKey
   | CoordinatorPluginTransformEventKey
+  | CoordinatorPluginPredicateEventKey
 
-export type CoordinatorPluginEventValues = {
+export type CoordinatorPluginArgumentValues = {
   // void
   message: Readonly<Envelope>
   'paths:resolve': Readonly<IResolvedPaths>
   // transform
   'pickles:filter': Readonly<Array<IFilterablePickle>>
   'pickles:order': Readonly<Array<IFilterablePickle>>
+  // predicate
+  'testcase:retry': Readonly<TestStepResult>
+}
+
+export type CoordinatorPluginReturnValues = {
+  // void
+  message: void
+  'paths:resolve': void
+  // transform
+  'pickles:filter': Readonly<Array<IFilterablePickle>>
+  'pickles:order': Readonly<Array<IFilterablePickle>>
+  // predicate
+  'testcase:retry': boolean
 }
 
 export type CoordinatorPluginEventHandler<K extends CoordinatorPluginEventKey> =
   (
-    value: CoordinatorPluginEventValues[K]
-  ) => K extends CoordinatorPluginTransformEventKey
-    ? Promisable<CoordinatorPluginEventValues[K]>
-    : void
+    value: CoordinatorPluginArgumentValues[K]
+  ) => K extends CoordinatorPluginVoidEventKey
+    ? void
+    : Promisable<CoordinatorPluginReturnValues[K]>
 
 export interface CoordinatorPluginContext<OptionsType> {
   operation: Operation

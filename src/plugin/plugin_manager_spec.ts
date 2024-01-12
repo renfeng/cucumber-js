@@ -1,10 +1,12 @@
 import sinon from 'sinon'
 import { expect } from 'chai'
+import { TestStepResultStatus } from '@cucumber/messages'
 import { IRunEnvironment } from '../api'
 import { ILogger } from '../logger'
 import { FakeLogger } from '../../test/fake_logger'
 import { IFilterablePickle } from '../filter'
 import { PluginManager } from './plugin_manager'
+import { CoordinatorPluginFunction } from './types'
 
 describe('PluginManager', () => {
   const environment: Required<IRunEnvironment> = {
@@ -16,9 +18,10 @@ describe('PluginManager', () => {
   }
   const logger: ILogger = new FakeLogger()
 
-  it('passes the correct context to the coordinator function', async () => {
-    const pluginManager = new PluginManager()
-    const coordinator = sinon.fake()
+  async function initWith(
+    pluginManager: PluginManager,
+    coordinator: CoordinatorPluginFunction<any>
+  ): Promise<PluginManager> {
     await pluginManager.init(
       'runCucumber',
       {
@@ -29,6 +32,12 @@ describe('PluginManager', () => {
       logger,
       environment
     )
+    return pluginManager
+  }
+
+  it('passes the correct context to the coordinator function', async () => {
+    const coordinator = sinon.fake()
+    await initWith(new PluginManager(), coordinator)
 
     expect(coordinator).to.have.been.calledOnce
     expect(coordinator.lastCall.firstArg.operation).to.eq('runCucumber')
@@ -42,27 +51,8 @@ describe('PluginManager', () => {
     const pluginManager = new PluginManager()
     const cleanup1 = sinon.fake()
     const cleanup2 = sinon.fake()
-    await pluginManager.init(
-      'runCucumber',
-      {
-        type: 'plugin',
-        coordinator: () => cleanup1,
-      },
-      {},
-      logger,
-      environment
-    )
-    await pluginManager.init(
-      'runCucumber',
-      {
-        type: 'plugin',
-        coordinator: () => cleanup2,
-      },
-      {},
-      logger,
-      environment
-    )
-
+    await initWith(pluginManager, () => cleanup1)
+    await initWith(pluginManager, () => cleanup2)
     await pluginManager.cleanup()
 
     expect(cleanup1).to.have.been.calledOnce
@@ -74,26 +64,8 @@ describe('PluginManager', () => {
       const pluginManager = new PluginManager()
       const handler1 = sinon.fake()
       const handler2 = sinon.fake()
-      await pluginManager.init(
-        'runCucumber',
-        {
-          type: 'plugin',
-          coordinator: ({ on }) => on('message', handler1),
-        },
-        {},
-        logger,
-        environment
-      )
-      await pluginManager.init(
-        'runCucumber',
-        {
-          type: 'plugin',
-          coordinator: ({ on }) => on('message', handler2),
-        },
-        {},
-        logger,
-        environment
-      )
+      await initWith(pluginManager, ({ on }) => on('message', handler1))
+      await initWith(pluginManager, ({ on }) => on('message', handler2))
 
       const value = {
         testRunStarted: {
@@ -131,36 +103,18 @@ describe('PluginManager', () => {
 
     it('should apply transforms in the order registered', async () => {
       const pluginManager = new PluginManager()
-      await pluginManager.init(
-        'runCucumber',
-        {
-          type: 'plugin',
-          coordinator: ({ on }) => {
-            // removes last item
-            on('pickles:filter', async (pickles) =>
-              pickles.slice(0, pickles.length - 1)
-            )
-          },
-        },
-        {},
-        logger,
-        environment
-      )
-      await pluginManager.init(
-        'runCucumber',
-        {
-          type: 'plugin',
-          coordinator: ({ on }) => {
-            // removes pickle 3 if present
-            on('pickles:filter', (pickles) =>
-              pickles.filter(({ pickle }) => pickle.id !== 'pickle-3')
-            )
-          },
-        },
-        {},
-        logger,
-        environment
-      )
+      await initWith(pluginManager, ({ on }) => {
+        // removes last item
+        on('pickles:filter', async (pickles) =>
+          pickles.slice(0, pickles.length - 1)
+        )
+      })
+      await initWith(pluginManager, ({ on }) => {
+        // removes pickle 3 if present
+        on('pickles:filter', (pickles) =>
+          pickles.filter(({ pickle }) => pickle.id !== 'pickle-3')
+        )
+      })
 
       const result = await pluginManager.transform(
         'pickles:filter',
@@ -188,6 +142,48 @@ describe('PluginManager', () => {
         filterablePickles
       )
       expect(result).to.eq(filterablePickles)
+    })
+  })
+
+  describe('predicates', () => {
+    const testStepResult = {
+      status: TestStepResultStatus.PASSED,
+      duration: {
+        seconds: 1,
+        nanos: 0,
+      },
+    }
+
+    it('should resolve to false if all return false', async () => {
+      const pluginManager = new PluginManager()
+      await initWith(pluginManager, ({ on }) => {
+        on('testcase:retry', async () => false)
+      })
+      await initWith(pluginManager, ({ on }) => {
+        on('testcase:retry', async () => false)
+      })
+
+      const result = await pluginManager.predicate(
+        'testcase:retry',
+        testStepResult
+      )
+      expect(result).to.be.false
+    })
+
+    it('should resolve to true if any return true', async () => {
+      const pluginManager = new PluginManager()
+      await initWith(pluginManager, ({ on }) => {
+        on('testcase:retry', async () => false)
+      })
+      await initWith(pluginManager, ({ on }) => {
+        on('testcase:retry', async () => true)
+      })
+
+      const result = await pluginManager.predicate(
+        'testcase:retry',
+        testStepResult
+      )
+      expect(result).to.be.true
     })
   })
 })
