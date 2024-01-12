@@ -1,16 +1,13 @@
 import { InternalPlugin } from '../plugin'
-import { IRunOptionsRuntime } from '../api'
+import { RetryOptions } from './types'
+import { shouldRetry } from './should_retry'
 
-export const retryPlugin: InternalPlugin<
-  Pick<IRunOptionsRuntime, 'retry' | 'retryTagFilter'>
-> = {
+export const retryPlugin: InternalPlugin<RetryOptions> = {
   type: 'plugin',
   coordinator: async ({ on, options }) => {
     if (options.retry < 1) {
       return
     }
-    on('testcase:retry', (event) => {
-      return false
-    })
+    on('testcase:retry', (failure) => shouldRetry(failure, options))
   },
 }
