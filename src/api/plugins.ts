@@ -7,6 +7,7 @@ import {
   IRunEnvironment,
   ISourcesCoordinates,
 } from './types'
+import retryPlugin from '../retry'
 
 export async function initializeForLoadSources(
   logger: ILogger,
@@ -48,6 +49,13 @@ export async function initializeForRunCucumber(
     'runCucumber',
     filterPlugin,
     configuration.sources,
+    logger,
+    environment
+  )
+  await pluginManager.init(
+    'runCucumber',
+    retryPlugin,
+    configuration.runtime,
     logger,
     environment
   )

@@ -1,10 +1,11 @@
 import sinon from 'sinon'
 import { expect } from 'chai'
-import { TestStepResultStatus } from '@cucumber/messages'
+import { Pickle, TestStepResultStatus } from '@cucumber/messages'
 import { IRunEnvironment } from '../api'
 import { ILogger } from '../logger'
 import { FakeLogger } from '../../test/fake_logger'
 import { IFilterablePickle } from '../filter'
+import { IRetryableFailure } from '../retry'
 import { PluginManager } from './plugin_manager'
 import { CoordinatorPluginFunction } from './types'
 
@@ -146,11 +147,15 @@ describe('PluginManager', () => {
   })
 
   describe('predicates', () => {
-    const testStepResult = {
-      status: TestStepResultStatus.PASSED,
-      duration: {
-        seconds: 1,
-        nanos: 0,
+    const retryable: IRetryableFailure = {
+      pickle: {} as Pickle,
+      attempt: 1,
+      result: {
+        status: TestStepResultStatus.FAILED,
+        duration: {
+          seconds: 1,
+          nanos: 0,
+        },
       },
     }
 
@@ -163,10 +168,7 @@ describe('PluginManager', () => {
         on('testcase:retry', async () => false)
       })
 
-      const result = await pluginManager.predicate(
-        'testcase:retry',
-        testStepResult
-      )
+      const result = await pluginManager.predicate('testcase:retry', retryable)
       expect(result).to.be.false
     })
 
@@ -179,10 +181,7 @@ describe('PluginManager', () => {
         on('testcase:retry', async () => true)
       })
 
-      const result = await pluginManager.predicate(
-        'testcase:retry',
-        testStepResult
-      )
+      const result = await pluginManager.predicate('testcase:retry', retryable)
       expect(result).to.be.true
     })
   })

@@ -1,9 +1,10 @@
-import { Envelope, TestCaseFinished, TestStepResult } from '@cucumber/messages'
+import { Envelope } from '@cucumber/messages'
 import { ArrayValues, Promisable } from 'type-fest'
 import { IRunEnvironment } from '../api'
 import { ILogger } from '../logger'
 import { IFilterablePickle } from '../filter'
 import { IResolvedPaths } from '../paths'
+import { IRetryableFailure } from '../retry'
 import {
   coordinatorPredicateKeys,
   coordinatorTransformKeys,
@@ -34,7 +35,7 @@ export type CoordinatorPluginArgumentValues = {
   'pickles:filter': Readonly<Array<IFilterablePickle>>
   'pickles:order': Readonly<Array<IFilterablePickle>>
   // predicate
-  'testcase:retry': Readonly<TestStepResult>
+  'testcase:retry': Readonly<IRetryableFailure>
 }
 
 export type CoordinatorPluginReturnValues = {
