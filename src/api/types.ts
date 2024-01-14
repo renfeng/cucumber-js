@@ -23,8 +23,11 @@ export interface ILoadConfigurationOptions {
   /**
    * Ad-hoc configuration options to be merged over the top of whatever is
    * loaded from the configuration file/profiles
+   * @remarks
+   * This can be provided as a string of argv-style arguments, though this is
+   * not really recommended.
    */
-  provided?: Partial<IConfiguration>
+  provided?: Partial<IConfiguration> | string
 }
 
 /**
